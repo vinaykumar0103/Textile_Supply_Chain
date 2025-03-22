@@ -4,8 +4,9 @@ import contractABI from './abi.json'; // Update this with the new contract ABI
 import './App.css';
 
 // Contract address
-const contractAddress = '0x30979ac99E0D2beEfCA20edb4591B56caA9AbAb2'; // Replace with your deployed address
+const contractAddress = '0x30979ac99E0D2beEfCA20edb4591B56caA9AbAb2'; // Deployed address
 
+//Main Component
 function App() {
   const [account, setAccount] = useState(null);
   const [contract, setContract] = useState(null);
@@ -113,7 +114,13 @@ function App() {
       console.error('Error updating product:', error);
       alert('Failed to update product: ' + error.message);
     }
+const product = await contract.digitalProducts(productId);
+if (product.currentStatus === 3) {  // DELIVERED
+  alert('Cannot update a delivered product');
+  return;
+    
   };
+}
 
   // Delete a product
   const deleteProduct = async () => {
