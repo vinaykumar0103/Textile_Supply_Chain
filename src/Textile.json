@@ -1,0 +1,27 @@
+[
+    {
+        "origin": "India",
+        "productName": "Organic Cotton Shirt",
+        "materialComposition": "100% Organic Cotton"
+    },
+    {
+        "origin": "New Zealand",
+        "productName": "Merino Wool Jacket",
+        "materialComposition": "90% Merino Wool, 10% Nylon"
+    },
+    {
+        "origin": "China",
+        "productName": "Silk Saree",
+        "materialComposition": "100% Silk"
+    },
+    {
+        "origin": "France",
+        "productName": "Linen Trousers",
+        "materialComposition": "100% Linen"
+    },
+    {
+        "origin": "USA",
+        "productName": "Denim Jacket",
+        "materialComposition": "98% Cotton, 2% Spandex"
+    }
+]
