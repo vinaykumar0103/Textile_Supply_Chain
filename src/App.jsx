@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import contractABI from './abi.json'; // Update this with the new contract ABI
+import contractABI from './abi.json';
 import './App.css';
 
-// Contract address
-const contractAddress = '0x30979ac99E0D2beEfCA20edb4591B56caA9AbAb2'; // Deployed address
+const contractAddress = '0x30979ac99E0D2beEfCA20edb4591B56caA9AbAb2'; // Contract Address
 
 //Main Component
 function App() {
@@ -18,8 +17,28 @@ function App() {
   const [newOrigin, setNewOrigin] = useState('');
   const [newMaterialComposition, setNewMaterialComposition] = useState('');
   const [newStatus, setNewStatus] = useState('');
-  const [status, setStatus] = useState('');
   const [provider, setProvider] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [textileData, setTextileData] = useState([]);
+
+  // Fetch textile data from API
+  useEffect(() => {
+    const fetchTextileData = async () => {
+      try {
+        const response = await fetch('https://api.myjson.online/v1/records/5f3ec479-5b28-47a2-9407-c8cd7abcf706');
+        const result = await response.json();
+        const data = result.data || []; 
+        setTextileData(data);
+        if (data.length === 0) {
+          console.warn('API returned empty dataset. Please populate the API with textile data.');
+        }
+      } catch (error) {
+        console.error('Error fetching textile data:', error);
+        alert('Failed to load textile data from API.');
+      }
+    };
+    fetchTextileData();
+  }, []);
 
   // Connect to MetaMask
   const connectMetaMask = async () => {
@@ -64,6 +83,22 @@ function App() {
     checkMetaMaskConnection();
   }, []);
 
+  // Handle product selection
+  const handleProductSelect = (e) => {
+    const selected = e.target.value;
+    setSelectedProduct(selected);
+    if (selected) {
+      const product = textileData.find(p => p.productName === selected);
+      setProductName(product.productName);
+      setOrigin(product.origin);
+      setMaterialComposition(product.materialComposition);
+    } else {
+      setProductName('');
+      setOrigin('');
+      setMaterialComposition('');
+    }
+  };
+
   // Issue a new product
   const issueProduct = async () => {
     if (!contract || !account) {
@@ -102,10 +137,7 @@ function App() {
         newOrigin,
         newMaterialComposition,
         newStatus,
-        {
-      
-    gasLimit: 500000,
-        }
+        { gasLimit: 500000 }
       );
       await tx.wait();
       console.log('Product Updated');
@@ -114,15 +146,14 @@ function App() {
       console.error('Error updating product:', error);
       alert('Failed to update product: ' + error.message);
     }
-const product = await contract.digitalProducts(productId);
-if (product.currentStatus === 3) {  // DELIVERED
-  alert('Cannot update a delivered product');
-  return;
-    
+    const product = await contract.digitalProducts(productId);
+    if (product.currentStatus === 3) {
+      alert('Cannot update a delivered product');
+      return;
+    }
   };
-}
 
-  // Delete a product
+  // Delete product
   const deleteProduct = async () => {
     if (!contract || !account) {
       alert('Please connect your wallet.');
@@ -157,6 +188,14 @@ if (product.currentStatus === 3) {  // DELIVERED
           <p>Connected Account: {account}</p>
           <div>
             <h2>Issue New Product</h2>
+            <select value={selectedProduct} onChange={handleProductSelect}>
+              <option value="">Select a product</option>
+              {textileData.map((product, index) => (
+                <option key={index} value={product.productName}>
+                  {product.productName}
+                </option>
+              ))}
+            </select>
             <input
               type="text"
               placeholder="Product Name"
