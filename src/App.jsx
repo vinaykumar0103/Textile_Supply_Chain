@@ -3,23 +3,24 @@ import { ethers } from 'ethers';
 import contractABI from './abi.json';
 import './App.css';
 
-const contractAddress = '0x30979ac99E0D2beEfCA20edb4591B56caA9AbAb2'; // Contract Address
+const contractAddress = '0x21CFF3353F89Df64c848758d86Afb984001c9C01'; // Contract Address
 
 //Main Component
 function App() {
   const [account, setAccount] = useState(null);
   const [contract, setContract] = useState(null);
   const [productId, setProductId] = useState('');
+  const [productDetails, setProductDetails] = useState(null);
   const [productName, setProductName] = useState('');
   const [origin, setOrigin] = useState('');
   const [materialComposition, setMaterialComposition] = useState('');
   const [newProductName, setNewProductName] = useState('');
   const [newOrigin, setNewOrigin] = useState('');
   const [newMaterialComposition, setNewMaterialComposition] = useState('');
-  const [newStatus, setNewStatus] = useState('');
   const [provider, setProvider] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [textileData, setTextileData] = useState([]);
+  const [productIds, setProductIds] = useState([]);
 
   // Fetch textile data from API
   useEffect(() => {
@@ -39,6 +40,22 @@ function App() {
     };
     fetchTextileData();
   }, []);
+
+   // Fetch product IDs by owner
+  useEffect(() => {
+    const fetchProductIds = async () => {
+      if (contract && account) {
+        try {
+          const ids = await contract.getProductIdsByOwner(account);
+          setProductIds(ids.map(id => id.toString())); // Convert BigNumber to string
+        } catch (error) {
+          console.error('Error fetching product IDs:', error);
+          alert('Failed to fetch product IDs: ' + error.message);
+        }
+      }
+    };
+    fetchProductIds();
+  }, [contract, account]);
 
   // Connect to MetaMask
   const connectMetaMask = async () => {
@@ -114,6 +131,8 @@ function App() {
       await tx.wait();
       console.log('Product Issued');
       alert('Product issued successfully!');
+       const ids = await contract.getProductIdsByOwner(account);
+      setProductIds(ids.map(id => id.toString()));
     } catch (error) {
       console.error('Error issuing product:', error);
       alert('Failed to issue product: ' + error.message);
@@ -126,7 +145,7 @@ function App() {
       alert('Please connect your wallet.');
       return;
     }
-    if (!productId || !newProductName || !newOrigin || !newMaterialComposition || !newStatus) {
+    if (!productId || !newProductName || !newOrigin || !newMaterialComposition) {
       alert('Please fill in all fields.');
       return;
     }
@@ -136,12 +155,13 @@ function App() {
         newProductName,
         newOrigin,
         newMaterialComposition,
-        newStatus,
         { gasLimit: 500000 }
       );
       await tx.wait();
       console.log('Product Updated');
       alert('Product updated successfully!');
+       const ids = await contract.getProductIdsByOwner(account);
+      setProductIds(ids.map(id => id.toString()));
     } catch (error) {
       console.error('Error updating product:', error);
       alert('Failed to update product: ' + error.message);
@@ -168,13 +188,41 @@ function App() {
       await tx.wait();
       console.log('Product Deleted');
       alert('Product deleted successfully!');
+       const ids = await contract.getProductIdsByOwner(account);
+      setProductIds(ids.map(id => id.toString()));
     } catch (error) {
       console.error('Error deleting product:', error);
       alert('Failed to delete product: ' + error.message);
     }
   };
 
-  // JSX
+
+   // Fetch product details by ID
+  const getProductDetails = async () => {
+    if (!contract || !account) {
+      alert('Please connect your wallet.');
+      return;
+    }
+    if (!productId) {
+      alert('Please select a Product ID.');
+      return;
+    }
+    try {
+      const [productName, origin, materialComposition, productionDate, currentStatus] = await contract.getProduct(productId);
+      setProductDetails({
+        productName,
+        origin,
+        materialComposition,
+        productionDate: productionDate.toString(),
+        currentStatus: currentStatus.toString()
+      });
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      alert('Failed to fetch product details: ' + error.message);
+    }
+  };
+
+   // JSX
   return (
     <div className="App">
       <h1>Textile Supply Chain</h1>
@@ -219,12 +267,17 @@ function App() {
 
           <div>
             <h2>Update Product</h2>
-            <input
-              type="text"
-              placeholder="Product ID"
+            <select
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
-            />
+            >
+              <option value="">Select Product ID</option>
+              {productIds.map((id, index) => (
+                <option key={index} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
             <input
               type="text"
               placeholder="New Product Name"
@@ -243,24 +296,49 @@ function App() {
               value={newMaterialComposition}
               onChange={(e) => setNewMaterialComposition(e.target.value)}
             />
-            <input
-              type="number"
-              placeholder="New Status (0-3)"
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-            />
             <button onClick={updateProduct}>Submit</button>
           </div>
 
           <div>
             <h2>Delete Product</h2>
-            <input
-              type="text"
-              placeholder="Product ID"
+            <select
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
-            />
+            >
+              <option value="">Select Product ID</option>
+              {productIds.map((id, index) => (
+                <option key={index} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
             <button onClick={deleteProduct}>Submit</button>
+          </div>
+
+          <div>
+            <h2>View Product Details</h2>
+            <select
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+            >
+              <option value="">Select Product ID</option>
+              {productIds.map((id, index) => (
+                <option key={index} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+            <button onClick={getProductDetails}>Get Product</button>
+
+            {productDetails && (
+              <div>
+                <p><strong>Name:</strong> {productDetails.productName}</p>
+                <p><strong>Origin:</strong> {productDetails.origin}</p>
+                <p><strong>Material Composition:</strong> {productDetails.materialComposition}</p>
+                <p><strong>Production Date:</strong> {new Date(productDetails.productionDate * 1000).toLocaleString()}</p>
+                <p><strong>Status:</strong> {['IN_PRODUCTION', 'QUALITY_CHECK', 'IN_TRANSIT', 'DELIVERED'][productDetails.currentStatus]}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

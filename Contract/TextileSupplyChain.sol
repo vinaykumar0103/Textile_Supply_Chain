@@ -29,6 +29,7 @@ contract TextileSupplyChain is ERC721, Ownable, ReentrancyGuard {
 
     // Mapping to store digital products.
     mapping(uint256 => DigitalProduct) private digitalProducts;
+    mapping(address => uint256[]) private ownerToProductIds;
 
     // events to log product issuance, updation and deletion.
     event ProductIssued(
@@ -87,6 +88,8 @@ contract TextileSupplyChain is ERC721, Ownable, ReentrancyGuard {
             Status.IN_PRODUCTION
         );
 
+        ownerToProductIds[msg.sender].push(productId);
+
         emit ProductIssued(
             productId,
             productName,
@@ -98,56 +101,96 @@ contract TextileSupplyChain is ERC721, Ownable, ReentrancyGuard {
         return productId;
     }
 
-    /// Updates details of an existing digital product.
-    function updateProduct(
-        uint256 productId,
-        string memory newProductName,
-        string memory newOrigin,
-        string memory newMaterialComposition,
-        Status newStatus
-    ) external onlyOwnerOf(productId) nonReentrant {
-        require(ownerOf(productId) != address(0), "Product not found");
-        require(
-            digitalProducts[productId].currentStatus != Status.DELIVERED,
-            "Final status reached"
-        );
-        require(
-            uint8(newStatus) > uint8(digitalProducts[productId].currentStatus),
-            "Invalid status transition"
-        );
+   /// Updates details of an existing digital product.
+function updateProduct(
+    uint256 productId,
+    string memory newProductName,
+    string memory newOrigin,
+    string memory newMaterialComposition
+) external onlyOwnerOf(productId) nonReentrant {
+    require(ownerOf(productId) != address(0), "Product not found");
+    require(
+        digitalProducts[productId].currentStatus != Status.DELIVERED,
+        "Final status reached"
+    );
 
-        uint256 productionDate = block.timestamp;
+    
+    digitalProducts[productId].currentStatus = Status(uint8(digitalProducts[productId].currentStatus) + 1);
 
-        digitalProducts[productId] = DigitalProduct(
-            newProductName,
-            newOrigin,
-            newMaterialComposition,
-            productionDate,
-            newStatus
-        );
+    uint256 productionDate = block.timestamp;
 
-        emit ProductUpdated(
-            productId,
-            newProductName,
-            newOrigin,
-            newMaterialComposition,
-            productionDate,
-            newStatus
+    digitalProducts[productId] = DigitalProduct(
+        newProductName,
+        newOrigin,
+        newMaterialComposition,
+        productionDate,
+        digitalProducts[productId].currentStatus
+    );
+
+    emit ProductUpdated(
+        productId,
+        newProductName,
+        newOrigin,
+        newMaterialComposition,
+        productionDate,
+        digitalProducts[productId].currentStatus
+    );
+}
+
+
+    /// Deletes a digital product from the blockchain.
+   function deleteProduct(uint256 productId) external onlyOwnerOf(productId) nonReentrant {
+    require(ownerOf(productId) != address(0), "Product not found");
+    require(digitalProducts[productId].currentStatus != Status.DELIVERED, "Cannot delete a delivered product");
+
+    
+    digitalProducts[productId].currentStatus = Status.DELIVERED;
+
+    emit ProductUpdated(
+        productId,
+        digitalProducts[productId].productName,
+        digitalProducts[productId].origin,
+        digitalProducts[productId].materialComposition,
+        digitalProducts[productId].productionDate,
+        Status.DELIVERED
+    );
+
+    _burn(productId);
+    delete digitalProducts[productId];
+
+    emit ProductDeleted(productId);
+}
+
+
+    // Returns details of a digital product.
+    function getProduct(
+        uint256 productId
+    )
+        external
+        view
+        returns (
+            string memory productName,
+            string memory origin,
+            string memory materialComposition,
+            uint256 productionDate,
+            Status currentStatus
+        )
+    {
+        require(ownerOf(productId) != address(0), "Product does not exist");
+        DigitalProduct memory product = digitalProducts[productId];
+        return (
+            product.productName,
+            product.origin,
+            product.materialComposition,
+            product.productionDate,
+            product.currentStatus
         );
     }
 
-    /// Deletes a digital product from the blockchain.
-    function deleteProduct(
-        uint256 productId
-    ) external onlyOwnerOf(productId) nonReentrant {
-        require(ownerOf(productId) != address(0), "Product not found");
-        require(
-            digitalProducts[productId].currentStatus != Status.DELIVERED,
-            "Cannot delete a delivered product"
-        );
-        _burn(productId);
-        delete digitalProducts[productId];
-
-        emit ProductDeleted(productId);
+   // Returns Product Id with Address.
+    function getProductIdsByOwner(
+        address owner
+    ) external view returns (uint256[] memory) {
+        return ownerToProductIds[owner];
     }
 }
